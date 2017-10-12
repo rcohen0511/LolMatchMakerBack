@@ -10,7 +10,7 @@ cur = conn.cursor()
 # client = pymongo.MongoClient()
 # collection = client.test.restaurants
 
-watcher = RiotWatcher('RGAPI-8f6558e8-7b12-4f8a-8e8e-224a67d9fbbc')
+watcher = RiotWatcher('RGAPI-d31bbdbe-2725-4e12-9037-218e24352f71')
 region = 'na1'
 summoner = 'LordSubie'
 
@@ -74,6 +74,11 @@ def getMasteriesById():
     pprint(masteries['data'])
     return(masteries['data'])
 
+def getRunesById():
+    runes = json.loads(watcher.static_data.runes(region))
+    print(runes)
+    return(runes)
+
 def getPlayerMatchInfo(gameId, summoner):
     recentMatch = getMatchInfo(gameId)
     # ================ Get Player Info =====================================#
@@ -107,7 +112,9 @@ def getPlayerMatchInfo(gameId, summoner):
     # items = json.dumps(itemList)
     match = watcher.match.timeline_by_match(region, gameId)
     itemList = {}
+    skillOrder = {}
     itemNum = 0
+    skillNum = 0
     for frame in match['frames']:
         # print("Frame: "+str(frame['timestamp']))
         for obj in frame['events']:
@@ -116,9 +123,16 @@ def getPlayerMatchInfo(gameId, summoner):
                     if obj['participantId'] == participantId:
                         itemList[itemNum] = obj['itemId']
                         itemNum += 1
+                elif obj['type'] == 'SKILL_LEVEL_UP':
+                    if obj['participantId'] == participantId:
+                        skillOrder[skillNum] = obj['skillSlot']
+                        skillNum += 1
+                # AT SOME POINT SHOULD PUT SOMETHING FOR SOLD ITEMS
+                # elif obj['type'] == 'ITEM_DESTROYED':
             except:
                 pass
     items = json.dumps(itemList, sort_keys=True)
+    skills = json.dumps(skillOrder, sort_keys=True)
     #==================== Opponent info ================================#
     i = 0
     while i <= 9:
@@ -130,8 +144,8 @@ def getPlayerMatchInfo(gameId, summoner):
         i = i + 1
     opponentChampion = champsByID[(recentMatch)['participants'][opponentParticipantId - 1]['championId']]
     #======================== SQL =======================================#
-    dataToSQL = (champPlayed,champID,summonerName,accountId,gameId,lane,runes,masteries,items,team,opponentSummoner,opponentAccountId,opponentChampion)
-    cur.execute("insert into matches values (NULL,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, %s, %s,%s)", dataToSQL)
+    dataToSQL = (champPlayed,champID,summonerName,accountId,gameId,lane,runes,masteries,items,skills, team,opponentSummoner,opponentAccountId,opponentChampion)
+    cur.execute("insert into matches values (NULL,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, %s, %s,%s, %s)", dataToSQL)
     conn.commit()
     return (dataToSQL)
 
@@ -144,39 +158,25 @@ def getItemsById():
 
 # Build static data
 masteries = {}
+runes = {}
 masteries = getMasteriesById()
+runes = getRunesById()
 champsByID = getChampionListById()
 items = getItemsById()
 
+print(runes[2])
+
+pprint(watcher.static_data.runes(region))
 
 
-match = watcher.match.timeline_by_match(region, 2576810045)
+match = watcher.match.timeline_by_match(region, 2611304278)
 test = json.dumps(match, indent=4)
 print(test['frames']['events'])
-print(match['frames']['events'])
+pprint(len(match['frames']))
+pprint(match['frames'])
 pprint(match['frames'][1]['events'])
-watcher.match.timeline_by_match(2576810045)
+watcher.match.timeline_by_match(2611304278)
 
-items = {}
-skillOrder = {}
-itemNum = 0
-skillNum = 0
-for frame in match['frames']:
-    # print("Frame: "+str(frame['timestamp']))
-    for obj in frame['events']:
-        try:
-            if obj['type'] == 'ITEM_PURCHASED':
-                if obj['participantId'] == 2:
-                    items[itemNum] = obj['itemId']
-                    itemNum += 1
-            elif obj['type'] == 'SKILL_LEVEL_UP':
-                if obj['participantId'] == 2:
-                    skillOrder[skillNum] = obj['skillSlot']
-                    skillNum += 1
-        except:
-            pass
-print(items)
-print(skillOrder)
 
 def fullMatchInfo():
 
@@ -188,11 +188,63 @@ def fullMatchInfo():
     return dataToSQL
 
 print(getMostRecentGameId('Lord Subie'))
-recentMatch = getMatchInfo(2602087548)
+recentMatch = getMatchInfo(2612301378)
 pprint(recentMatch['participantIdentities'])
 
-getPlayerMatchInfo(2602087548,'Lord Subie')
+getPlayerMatchInfo(2612301378,'Lord Subie')
 
 
 conn.commit()
 
+
+
+
+###
+#
+
+
+def get_items():
+    def filter_items(events, participant_id):
+        # return filter(lambda e: e.get('type') in ['ITEM_PURCHASED', 'ITEM_UNDO']  and e.get('participantId') == participant_id, events)
+        return filter(lambda e: e.get('type') in ['ITEM_PURCHASED'] and e.get('participantId') == participant_id,
+                      events)
+
+    def get_items_map():
+        return watcher.static_data.items(region).get('data')
+
+    participant_id = 1
+    game_id = 2611304278
+    region = 'na1'
+    match = watcher.match.timeline_by_match(region, game_id)
+    items_map = get_items_map()
+
+    events = [filter_items(f.get('events'), participant_id) for f in match['frames']]
+    events_of_events = [x for x in events if x != []]
+
+    n_events_of_events = []
+    for events in events_of_events:
+        n_events = []
+        for e in events:
+            n_events.append({
+                'item_id': e.get('itemId'),
+                'name': items_map.get(str(e.get('itemId'))).get('name'),
+                'type': e.get('type'),
+            })
+        n_events_of_events.append(n_events)
+    return n_events_of_events
+
+n_events_of_events = get_items()
+
+# pprint(items.get('3020'))
+
+pprint(n_events_of_events)
+
+json.dumps(n_events_of_events)
+
+# norm_data = [[{
+#     'item_id': e.get('itemId'),
+#     'name': items.get(e.get('itemId'))
+#     'type': e.get('type')
+# } for e in ee] for ee in events]
+
+pprint(norm_data)
