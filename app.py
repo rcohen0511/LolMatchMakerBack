@@ -1,10 +1,18 @@
-import league_api
+from test import league_api
 import json
-from collections import OrderedDict
 from flask import Flask, jsonify
-from riotwatcher import RiotWatcher
 import riot
 import static_data
+import json
+import matcher
+import utils
+
+from flask import Flask, jsonify
+
+import riot
+import static_data
+from test import league_api
+
 app = Flask(__name__)
 
 @app.route("/")
@@ -17,33 +25,46 @@ def matches(champPlayed, champPlayedOpp):
     print champPlayed
     print champPlayedOpp
 
-    data = league_api.get_matches(champPlayed, champPlayedOpp)
-    print(data)
-    data = data[0][1:]
-    # return jsonify({"data": {"items": json.loads(data[7])}})
+    # match_info = match_info
+    match_infos = matcher.find_match_info_by_players(champPlayed, champPlayedOpp)
+
     return jsonify({
-        "champPlayed": data[0],
-        "champId": data[1],
-        "summonerName": data[2],
-        "accountId": data[3],
-        "gameId": data[4],
-        "lane": data[5],
-        "runes": json.loads(data[6]),
-        "masteries": json.loads(data[7]),
-        "items": json.loads(data[8]),
-        "skills": json.loads(data[9]),
-        "team": data[10],
-        "opponentSummoner": data[11],
-        "opponentAccountId": data[12],
-        "opponentChampion": data[13]
+        "match_infos": utils.norm_json(match_infos)
     })
-    # return jsonify({ "data": {
-    #     "items": json.loads(data)
-    # }})
+
+# OLD
+# @app.route("/api/matches/<champPlayed>/<champPlayedOpp>")
+# def matches(champPlayed, champPlayedOpp):
+#     print champPlayed
+#     print champPlayedOpp
+#
+#     data = league_api.get_matches(champPlayed, champPlayedOpp)
+#     data = data[0][1:]
+#     print(type(json.loads(data[8])))
+#     # return jsonify({"data": {"items": json.loads(data[7])}})
+#     return jsonify({
+#         "champPlayed": data[0],
+#         "champId": data[1],
+#         "summonerName": data[2],
+#         "accountId": data[3],
+#         "gameId": data[4],
+#         "lane": data[5],
+#         "runes": json.loads(data[6]),
+#         "masteries": json.loads(data[7]),
+#         "items": json.loads(data[8]),
+#         "skills": json.loads(data[9]),
+#         "team": data[10],
+#         "opponentSummoner": data[11],
+#         "opponentAccountId": data[12],
+#         "opponentChampion": data[13]
+#     })
+#     # return jsonify({ "data": {
+#     #     "items": json.loads(data)
+#     # }})
 
 
-@app.route("/api/items")
-def get_items():
+@app.route("/api/itemsOld")
+def get_itemsOld():
     def filter_items(events, participant_id):
         # return filter(lambda e: e.get('type') in ['ITEM_PURCHASED', 'ITEM_UNDO']  and e.get('participantId') == participant_id, events)
         return filter(lambda e: e.get('type') in ['ITEM_PURCHASED'] and e.get('participantId') == participant_id,
@@ -66,15 +87,18 @@ def get_items():
         n_events = []
         for e in events:
             n_events.append({
-                'item_id': e.get('itemId'),
+                'itemId': e.get('itemId'),
                 'name': items_map.get(str(e.get('itemId'))).get('name'),
                 'type': e.get('type'),
+                'description': items_map.get(str(e.get('itemId'))).get('description'),
+                'plaintext': items_map.get(str(e.get('itemId'))).get('plaintext'),
             })
         n_events_of_events.append(n_events)
     return jsonify(
         {
             "events_of_events": n_events_of_events
         })
+
 
 
 if __name__ == "__main__":

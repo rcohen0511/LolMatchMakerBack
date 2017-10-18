@@ -247,4 +247,5 @@ json.dumps(n_events_of_events)
 #     'type': e.get('type')
 # } for e in ee] for ee in events]
 
-pprint(norm_data)
+# pprint(norm_data)
+# print(watcher.

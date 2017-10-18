@@ -1,10 +1,21 @@
 from riotwatcher import RiotWatcher
+from pprint import pprint
+import config
 
-watcher = RiotWatcher('RGAPI-d31bbdbe-2725-4e12-9037-218e24352f71')
+watcher = RiotWatcher(config.RIOT_KEY)
 region = 'na1'
 
-def get_match(game_id):
+def getMatch(game_id):
     return watcher.match.timeline_by_match(region, game_id)
 
 def get_items():
-    watcher.static_data.items(region).get('data')
+    return watcher.static_data.items(region).get('data')
+
+
+def get_champions():
+    champions = watcher.static_data.champions(region).get('data')
+    watcher.champion.by_id()
+    pprint(champions)
+
+    return champions
+
